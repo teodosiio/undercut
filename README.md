@@ -32,7 +32,8 @@ Vercel functions have no lasting disk or always-on process, so the deployed app 
 - **Pages:** files in `public/` are served by Vercel.
 - **API:** every `/api/*` request goes to one function, `api/index.js`, which runs the same app as the local server.
 - **Database:** a Neon Postgres database, added from Vercel's Marketplace, which sets `DATABASE_URL`.
-- **Price checks:** the GitHub Actions workflow in `.github/workflows/check-prices.yml` calls `/api/cron` every 15 minutes, because Vercel's free plan allows cron jobs only once a day. GitHub can start scheduled runs a few minutes late, and pauses them in public repositories after 60 days without commits.
+- **Price checks:** the GitHub Actions workflow in `.github/workflows/check-prices.yml` calls `/api/cron` every 15 minutes, because Vercel's free plan allows cron jobs only once a day. `vercel.json` keeps one daily Vercel run as a backup. GitHub can start scheduled runs late or skip them under load, and pauses them in public repositories after 60 days without commits.
+- **Database time:** Neon's free plan has 100 compute-hours a month and sleeps after 5 idle minutes. Checks every 15 minutes and a page refresh every 6 minutes let it sleep. Checking every 5 minutes would keep it awake and use up the allowance mid-month.
 
 Set these on Vercel: `PRICE_PROVIDER=futgenie`, `MAX_ACCOUNTS=1` (so only your watchlist can exist), and a random `CRON_SECRET`. Set these as GitHub repository secrets: `UNDERCUT_URL` (the site address) and `UNDERCUT_CRON_SECRET` (the same value as `CRON_SECRET`).
 

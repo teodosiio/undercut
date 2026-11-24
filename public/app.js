@@ -1,5 +1,8 @@
 const TOKEN_KEY = 'undercut.token';
-const REFRESH_MS = 5000;
+// Prices change at most every 15 minutes, and polling more often than every 5 minutes would keep the
+// free database awake all day. The "Checked" label still ticks locally.
+const REFRESH_MS = 6 * 60_000;
+const LABEL_TICK_MS = 30_000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ICONS = {
   edit: 'M4 20h4L19 9l-4-4L4 16v4M13 7l4 4',
@@ -748,6 +751,9 @@ async function start() {
   setInterval(() => {
     if (document.visibilityState === 'visible') refresh();
   }, REFRESH_MS);
+  setInterval(() => {
+    if (state) renderMeta();
+  }, LABEL_TICK_MS);
 }
 
 start();

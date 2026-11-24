@@ -1,10 +1,11 @@
-# Runs Undercut's price check every 15 minutes, because Vercel's free plan only allows daily cron jobs.
+# Runs Undercut's price check every 15 minutes, because Vercel's free plan only allows daily cron jobs
+# (vercel.json keeps one daily run as a backup). Minutes avoid :00, when GitHub most often delays runs.
 # Needs two repository secrets: UNDERCUT_URL (the site address) and UNDERCUT_CRON_SECRET.
 name: Check prices
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 
 permissions: {}
