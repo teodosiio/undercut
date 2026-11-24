@@ -3,9 +3,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// Values pasted into hosting dashboards often carry a trailing newline.
+const env = (name) => (process.env[name] ?? '').trim();
+
 function intEnv(name, fallback, min, max) {
-  const raw = process.env[name];
-  if (raw === undefined || raw === '') return fallback;
+  const raw = env(name);
+  if (raw === '') return fallback;
   const value = Number(raw);
   if (!Number.isInteger(value) || value < min || value > max) {
     throw new Error(`${name} must be an integer from ${min} to ${max}`);
@@ -13,7 +16,7 @@ function intEnv(name, fallback, min, max) {
   return value;
 }
 
-const priceProvider = process.env.PRICE_PROVIDER || 'simulated';
+const priceProvider = env('PRICE_PROVIDER') || 'simulated';
 const defaultPollSeconds = { simulated: 15, futgenie: 900, datafluxor: 120 }[priceProvider] ?? 60;
 
 export const config = {
@@ -31,8 +34,8 @@ export const config = {
   dataFluxorKey: process.env.DATAFLUXOR_API_KEY || '',
   dataFluxorSandbox: process.env.DATAFLUXOR_SANDBOX === '1',
   // Neon via the Vercel integration sets DATABASE_URL. Without it, a local PGlite database is used.
-  databaseUrl: process.env.DATABASE_URL || process.env.POSTGRES_URL || '',
-  cronSecret: process.env.CRON_SECRET || '',
-  vapidSubject: process.env.VAPID_SUBJECT
-    || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'mailto:alerts@example.com'),
+  databaseUrl: env('DATABASE_URL') || env('POSTGRES_URL'),
+  cronSecret: env('CRON_SECRET'),
+  vapidSubject: env('VAPID_SUBJECT')
+    || (env('VERCEL_PROJECT_PRODUCTION_URL') ? `https://${env('VERCEL_PROJECT_PRODUCTION_URL')}` : 'mailto:alerts@example.com'),
 };
