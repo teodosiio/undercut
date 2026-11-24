@@ -1,18 +1,29 @@
+// Renders the PNG app icons from the same shapes as public/icons/icon.svg:
+// a dashed target line, and a price line that dives under it and ends in a dot.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { crc32, deflateSync } from 'node:zlib';
 
 const outDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public/icons');
-const BG = [10, 13, 18];
+const BG = [15, 13, 20];
+const LINE = [201, 196, 212];
+const MINT = [94, 224, 138];
 const SAMPLES = 4;
-// Four falling bars, matching public/icons/icon.svg (coordinates out of 512).
-const BARS = [
-  { x: 120, y: 128, color: [255, 93, 82] },
-  { x: 200, y: 200, color: [242, 180, 65] },
-  { x: 280, y: 270, color: [67, 209, 177] },
-  { x: 360, y: 314, color: [67, 209, 177] },
-].map((bar) => ({ left: bar.x / 512, right: (bar.x + 48) / 512, top: bar.y / 512, bottom: 384 / 512, color: bar.color }));
+const n = (value) => value / 512;
+
+// Dashed target line: dashes 44 long with 32 gaps from x=104 to x=408, rounded ends.
+const DASHES = [];
+for (let x = 104; x < 408; x += 76) DASHES.push([n(x), n(210), n(Math.min(x + 44, 408)), n(210)]);
+const PRICE = [[112, 118, 250, 168], [250, 168, 320, 344], [320, 344, 388, 366]].map((s) => s.map(n));
+const DOT = { x: n(398), y: n(370), r: n(40) };
+
+function segmentDistance(x, y, [ax, ay, bx, by]) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
+}
 
 function insideRounded(x, y, radius) {
   const qx = Math.abs(x - 0.5) - (0.5 - radius);
@@ -25,8 +36,10 @@ function sample(u, v, maskable) {
   const scale = maskable ? 0.72 : 1;
   const x = 0.5 + (u - 0.5) / scale;
   const y = 0.5 + (v - 0.5) / scale;
-  const bar = BARS.find((b) => x >= b.left && x <= b.right && y >= b.top && y <= b.bottom);
-  return bar ? bar.color : BG;
+  if (Math.hypot(x - DOT.x, y - DOT.y) <= DOT.r) return MINT;
+  if (PRICE.some((segment) => segmentDistance(x, y, segment) <= n(20))) return MINT;
+  if (DASHES.some((segment) => segmentDistance(x, y, segment) <= n(11))) return LINE;
+  return BG;
 }
 
 function chunk(type, data) {

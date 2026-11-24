@@ -1,4 +1,4 @@
-const CACHE = 'undercut-v3';
+const CACHE = 'undercut-v4';
 const SHELL = [
   '/',
   '/styles.css',

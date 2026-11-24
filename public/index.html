@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Undercut</title>
   <meta name="description" content="Get a notification when a watched Ultimate Team player drops under your price.">
-  <meta name="theme-color" content="#0a0d12">
+  <meta name="theme-color" content="#0f0d14">
   <link rel="preload" href="/fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/bricolage-grotesque-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
   <meta name="mobile-web-app-capable" content="yes">
@@ -22,11 +22,10 @@
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="/" aria-label="Undercut home">
-        <svg class="wordmark" width="22" height="18" viewBox="0 0 22 18" aria-hidden="true">
-          <rect x="0" y="0" width="3" height="18" fill="#ff5d52"/>
-          <rect x="6" y="5" width="3" height="13" fill="#f2b441"/>
-          <rect x="12" y="10" width="3" height="8" fill="#43d1b1"/>
-          <rect x="18" y="13" width="3" height="5" fill="#43d1b1"/>
+        <svg class="wordmark" width="26" height="22" viewBox="0 0 26 22" aria-hidden="true">
+          <path d="M2 8.5H24" stroke="#c9c4d4" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 3.5"/>
+          <path d="M2.5 3L11 6l4 11 6.5 1.5" fill="none" stroke="#5ee08a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="22" cy="18.5" r="2.6" fill="#5ee08a"/>
         </svg>
         <span>Undercut</span>
       </a>
@@ -75,11 +74,10 @@
         <ul class="watch-list" id="watchList"></ul>
       </div>
       <div class="empty" id="watchEmpty" hidden>
-        <svg class="empty-mark" viewBox="0 0 22 18" aria-hidden="true">
-          <rect x="0" y="0" width="3" height="18"/>
-          <rect x="6" y="5" width="3" height="13"/>
-          <rect x="12" y="10" width="3" height="8"/>
-          <rect x="18" y="13" width="3" height="5"/>
+        <svg class="empty-mark" viewBox="0 0 26 22" aria-hidden="true">
+          <path d="M2 8.5H24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 3.5"/>
+          <path d="M2.5 3L11 6l4 11 6.5 1.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="22" cy="18.5" r="2.6" fill="currentColor"/>
         </svg>
         <h3 id="emptyTitle">Pick your first player</h3>
         <p id="emptyText">Set the price you want to pay. Undercut alerts you when the card drops under it.</p>

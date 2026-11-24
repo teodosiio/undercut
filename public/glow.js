@@ -1,7 +1,7 @@
-// Grid with glows drifting between its intersections, in the same style as QuantumTrace's hero.
-// Colours follow the status palette: red, amber and teal. Paused while hidden or off-screen,
-// capped at about 30 frames a second, and a still frame for people who prefer reduced motion.
-const PALETTE = ['255, 93, 82', '242, 180, 65', '67, 209, 177'];
+// Grid with glows drifting between its intersections. Colours follow Undercut's palette:
+// mint, sky blue and pink. Paused while hidden or off-screen, capped at about 30 frames
+// a second, and a still frame for people who prefer reduced motion.
+const PALETTE = ['94, 224, 138', '96, 184, 255', '255, 95, 162'];
 const GRID = 48;
 const GLOWS = 9;
 const FRAME_MS = 33;
@@ -31,7 +31,7 @@ export function startGlow(canvas) {
 
   function draw(move) {
     ctx.clearRect(0, 0, width, height);
-    ctx.strokeStyle = 'rgba(232, 235, 239, 0.06)';
+    ctx.strokeStyle = 'rgba(242, 239, 247, 0.06)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = 0; x <= width; x += GRID) {
@@ -56,7 +56,7 @@ export function startGlow(canvas) {
       }
       const gradient = ctx.createRadialGradient(glow.x, glow.y, 0, glow.x, glow.y, glow.r);
       gradient.addColorStop(0, `rgba(${glow.color}, 1)`);
-      gradient.addColorStop(1, 'rgba(10, 13, 18, 0)');
+      gradient.addColorStop(1, 'rgba(15, 13, 20, 0)');
       ctx.globalAlpha = glow.alpha;
       ctx.fillStyle = gradient;
       ctx.beginPath();
