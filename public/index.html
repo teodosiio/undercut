@@ -83,6 +83,17 @@
         <p id="emptyText">Set the price you want to pay. Undercut alerts you when the card drops under it.</p>
         <button class="btn btn-primary" id="emptyAdd" type="button">Add player</button>
         <button class="btn btn-primary" id="startButton" type="button" hidden>Start my watchlist</button>
+        <form class="link-form" id="linkForm" novalidate hidden>
+          <span class="or" aria-hidden="true">or</span>
+          <label class="field">
+            <span>Already have a watchlist? Paste its private link</span>
+            <span class="link-row">
+              <input id="linkInput" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://…/#sync=…">
+              <button class="btn" id="linkSubmit" type="submit">Open</button>
+            </span>
+          </label>
+          <p class="form-error" id="linkError" role="alert" hidden></p>
+        </form>
       </div>
     </section>
 

@@ -678,37 +678,89 @@ function bindEvents() {
   });
 }
 
+// Accepts a whole private link (".../#sync=<token>") or just the token.
+function tokenFromLink(text) {
+  const value = text.trim();
+  return /#sync=([\w-]{20,100})/.exec(value)?.[1] ?? (/^[\w-]{20,100}$/.test(value) ? value : null);
+}
+
 // A watchlist is created only after a click, so link previews and screenshot bots that run the page
-// cannot claim one on a site limited to a single watchlist.
+// cannot claim one on a site limited to a single watchlist. The same screen can open an existing
+// watchlist from its private link, which an iPhone Home Screen app needs: it does not share
+// storage with Safari, so a link opened in Safari never reaches it.
 function waitForStart() {
   const title = $('#emptyTitle');
   const text = $('#emptyText');
   const button = $('#startButton');
+  const form = $('#linkForm');
+  const error = $('#linkError');
   const original = [title.textContent, text.textContent];
   title.textContent = 'Start your watchlist';
-  text.textContent = 'This creates a private watchlist for this browser. If you already have one, open its private link instead.';
+  text.textContent = 'This creates a private watchlist for this browser.';
   $('#emptyAdd').hidden = true;
   button.hidden = false;
+  form.hidden = false;
   $('#watchEmpty').hidden = false;
   $('#addButton').disabled = true;
 
   return new Promise((resolve) => {
-    button.addEventListener('click', async function onStart() {
-      button.disabled = true;
-      try {
-        await createAccount();
-      } catch (error) {
-        toast(error.message);
-        button.disabled = false;
-        return;
-      }
+    const finish = () => {
       button.removeEventListener('click', onStart);
+      form.removeEventListener('submit', onLink);
       button.hidden = true;
+      form.hidden = true;
       $('#emptyAdd').hidden = false;
       [title.textContent, text.textContent] = original;
       $('#addButton').disabled = false;
       resolve();
-    });
+    };
+
+    async function onStart() {
+      button.disabled = true;
+      try {
+        await createAccount();
+        finish();
+      } catch (failure) {
+        toast(failure.message);
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function onLink(event) {
+      event.preventDefault();
+      const showError = (message) => {
+        error.textContent = message;
+        error.hidden = false;
+      };
+      error.hidden = true;
+      const candidate = tokenFromLink($('#linkInput').value);
+      if (!candidate) {
+        showError('Paste the whole link from Copy private link on your other device.');
+        return;
+      }
+      const submit = $('#linkSubmit');
+      submit.disabled = true;
+      try {
+        const response = await fetch('/api/state', { headers: { authorization: `Bearer ${candidate}` } });
+        if (response.status === 401) {
+          showError('That link does not match a watchlist here.');
+          return;
+        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        writeToken(candidate);
+        $('#linkInput').value = '';
+        finish();
+        toast('Your watchlist is open on this device.');
+      } catch {
+        showError('Could not reach Undercut. Check your connection and try again.');
+      } finally {
+        submit.disabled = false;
+      }
+    }
+
+    button.addEventListener('click', onStart);
+    form.addEventListener('submit', onLink);
   });
 }
 

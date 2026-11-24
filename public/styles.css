@@ -425,6 +425,20 @@ a { color: inherit; text-underline-offset: 4px; }
 .empty p { max-width: 44ch; color: var(--muted); }
 .empty-mark { width: 36px; height: 30px; margin-bottom: 4px; color: var(--ghost); }
 
+.link-form { display: grid; gap: 10px; width: min(100%, 440px); margin-top: 6px; text-align: left; }
+.or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--faint);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--rule-strong); }
+.link-row { display: flex; gap: 8px; }
+.link-row input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 14px !important; }
+.link-row .btn { min-height: 44px; }
+
 /* Alerts */
 
 .alert-list { display: grid; }
