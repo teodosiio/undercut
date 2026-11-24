@@ -23,6 +23,8 @@ jobs:
           UNDERCUT_URL: ${{ secrets.UNDERCUT_URL }}
           UNDERCUT_CRON_SECRET: ${{ secrets.UNDERCUT_CRON_SECRET }}
         run: |
+          secret="$(printf '%s' "$UNDERCUT_CRON_SECRET" | tr -d '\r\n')"
+          url="$(printf '%s' "$UNDERCUT_URL" | tr -d '\r\n')"
           curl --fail-with-body --silent --show-error --max-time 320 \
-            -X POST -H "Authorization: Bearer ${UNDERCUT_CRON_SECRET}" \
-            "${UNDERCUT_URL%/}/api/cron"
+            -X POST -H "Authorization: Bearer ${secret}" \
+            "${url%/}/api/cron"
