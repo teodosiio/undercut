@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Undercut</title>
   <meta name="description" content="Get a notification when a watched Ultimate Team player drops under your price.">
-  <meta name="theme-color" content="#f1f2f0" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#101112" media="(prefers-color-scheme: dark)">
-  <link rel="preload" href="/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <meta name="theme-color" content="#0a0d12">
+  <link rel="preload" href="/fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Undercut">
@@ -22,7 +22,12 @@
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="/" aria-label="Undercut home">
-        <img src="/icons/icon.svg" alt="" width="30" height="30">
+        <svg class="wordmark" width="22" height="18" viewBox="0 0 22 18" aria-hidden="true">
+          <rect x="0" y="0" width="3" height="18" fill="#ff5d52"/>
+          <rect x="6" y="5" width="3" height="13" fill="#f2b441"/>
+          <rect x="12" y="10" width="3" height="8" fill="#43d1b1"/>
+          <rect x="18" y="13" width="3" height="5" fill="#43d1b1"/>
+        </svg>
         <span>Undercut</span>
       </a>
       <div class="topbar-meta">
@@ -39,24 +44,44 @@
     <strong id="demoTitle"></strong> <span id="demoText"></span>
   </div>
 
+  <section class="hero" data-panel="watchlist" aria-labelledby="heroTitle">
+    <canvas class="hero-glow" id="heroGlow" aria-hidden="true"></canvas>
+    <div class="hero-inner">
+      <p class="eyebrow">Price alerts for your FC 27 Ultimate Team watchlist</p>
+      <h1 id="heroTitle">Get pinged when a card drops <span class="accent">under</span> your price.</h1>
+      <dl class="hero-stats">
+        <div><dt>Watching</dt><dd id="statWatching">–</dd></div>
+        <div><dt>Under target</dt><dd id="statUnder">–</dd></div>
+        <div><dt>Last check</dt><dd id="statChecked">–</dd></div>
+      </dl>
+    </div>
+  </section>
+
   <main class="layout">
-    <section class="panel-watchlist" data-panel="watchlist" aria-labelledby="watchHeading">
+    <section class="panel panel-watchlist" data-panel="watchlist" aria-labelledby="watchHeading">
       <div class="section-head">
-        <h1 id="watchHeading">Watchlist</h1>
+        <h2 id="watchHeading">Watchlist</h2>
         <span class="slots" id="slots" aria-live="polite"></span>
       </div>
       <div class="slot-meter" aria-hidden="true"><span id="slotFill"></span></div>
-      <p class="credit" id="credit" hidden><a id="creditLink" href="/" target="_blank" rel="noopener noreferrer"></a></p>
-      <div class="list-head" id="listHead" aria-hidden="true" hidden>
-        <span>Card</span>
-        <span class="trend">Trend</span>
-        <span class="num">Price</span>
-        <span>Gap</span>
-        <span></span>
+      <div class="sheet-table">
+        <div class="list-head" id="listHead" aria-hidden="true" hidden>
+          <span>Card</span>
+          <span class="trend">Trend</span>
+          <span class="num">Price</span>
+          <span>Gap</span>
+          <span></span>
+        </div>
+        <ul class="watch-list" id="watchList"></ul>
       </div>
-      <ul class="watch-list" id="watchList"></ul>
       <div class="empty" id="watchEmpty" hidden>
-        <h2 id="emptyTitle">Pick your first player</h2>
+        <svg class="empty-mark" viewBox="0 0 22 18" aria-hidden="true">
+          <rect x="0" y="0" width="3" height="18"/>
+          <rect x="6" y="5" width="3" height="13"/>
+          <rect x="12" y="10" width="3" height="8"/>
+          <rect x="18" y="13" width="3" height="5"/>
+        </svg>
+        <h3 id="emptyTitle">Pick your first player</h3>
         <p id="emptyText">Set the price you want to pay. Undercut alerts you when the card drops under it.</p>
         <button class="btn btn-primary" id="emptyAdd" type="button">Add player</button>
         <button class="btn btn-primary" id="startButton" type="button" hidden>Start my watchlist</button>
@@ -64,16 +89,16 @@
     </section>
 
     <div class="rail">
-      <section class="card" data-panel="alerts" aria-labelledby="alertsHeading">
+      <section class="panel" data-panel="alerts" aria-labelledby="alertsHeading">
         <div class="section-head">
           <h2 id="alertsHeading">Alerts</h2>
-          <button class="btn btn-quiet" id="markRead" type="button" hidden>Mark read</button>
+          <button class="btn btn-quiet btn-sm" id="markRead" type="button" hidden>Mark read</button>
         </div>
         <ul class="alert-list" id="alertList"></ul>
         <p class="muted" id="alertsEmpty">No alerts yet. Price drops will show up here.</p>
       </section>
 
-      <section class="card" data-panel="settings" aria-labelledby="notifyHeading">
+      <section class="panel" data-panel="settings" aria-labelledby="notifyHeading">
         <h2 id="notifyHeading">Notifications</h2>
         <p class="muted" id="pushText">Checking this device.</p>
         <div class="button-row">
@@ -83,7 +108,7 @@
         </div>
       </section>
 
-      <section class="card" data-panel="settings" aria-labelledby="devicesHeading">
+      <section class="panel" data-panel="settings" aria-labelledby="devicesHeading">
         <h2 id="devicesHeading">Your devices</h2>
         <p class="muted">Open your private link on your phone or computer to share this watchlist. Anyone with the link can edit it.</p>
         <div class="button-row">
@@ -95,6 +120,13 @@
       </section>
     </div>
   </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <span class="credit" id="credit" hidden><a id="creditLink" href="/" target="_blank" rel="noopener noreferrer"></a></span>
+      <span>Checks every 15 minutes · alerts once per drop</span>
+    </div>
+  </footer>
 
   <nav class="tabs" aria-label="Sections">
     <button type="button" data-tab="watchlist" aria-current="page">
@@ -148,10 +180,12 @@
         <input id="fieldRef" name="sourceRef" maxlength="120" autocomplete="off" placeholder="Card ID in your price feed">
       </label>
 
-      <fieldset class="field segmented" id="platformField">
+      <fieldset class="field" id="platformField">
         <legend>Platform</legend>
-        <label><input type="radio" name="platform" value="console" checked><span>Console</span></label>
-        <label><input type="radio" name="platform" value="pc"><span>PC</span></label>
+        <div class="seg">
+          <label><input type="radio" name="platform" value="console" checked><span>Console</span></label>
+          <label><input type="radio" name="platform" value="pc"><span>PC</span></label>
+        </div>
         <small class="platform-hint" id="platformHint" hidden>PC prices aren't available from this price source.</small>
       </fieldset>
 

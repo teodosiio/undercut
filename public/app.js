@@ -1,3 +1,5 @@
+import { startGlow } from './glow.js';
+
 const TOKEN_KEY = 'undercut.token';
 // Prices change at most every 15 minutes, and polling more often than every 5 minutes would keep the
 // free database awake all day. The "Checked" label still ticks locally.
@@ -245,6 +247,10 @@ function renderWatches() {
   const used = state.watches.length;
   $('#watchEmpty').hidden = used > 0;
   $('#listHead').hidden = used === 0;
+  const under = state.watches.filter((watch) => statusOf(watch).key === 'under').length;
+  $('#statWatching').textContent = `${used} of ${state.limit}`;
+  $('#statUnder').textContent = String(under);
+  $('#statUnder').classList.toggle('is-good', under > 0);
   $('#slots').textContent = `${used} of ${state.limit} players`;
   $('#slotFill').style.width = `${(used / state.limit) * 100}%`;
   const full = used >= state.limit;
@@ -270,6 +276,7 @@ function renderAlerts() {
 function renderMeta() {
   const when = state.lastRun?.at;
   $('#lastChecked').textContent = when ? `Checked ${timeAgo(when)}` : '';
+  $('#statChecked').textContent = when ? timeAgo(when) : '–';
 }
 
 function applyState(next) {
@@ -708,6 +715,7 @@ function waitForStart() {
 async function start() {
   bindEvents();
   consumeSyncLink();
+  startGlow($('#heroGlow'));
 
   try {
     cfg = await api('/api/config');

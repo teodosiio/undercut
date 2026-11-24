@@ -1,10 +1,12 @@
-const CACHE = 'undercut-v2';
+const CACHE = 'undercut-v3';
 const SHELL = [
   '/',
   '/styles.css',
   '/app.js',
-  '/fonts/archivo-latin-wdth-normal.woff2',
-  '/fonts/archivo-latin-ext-wdth-normal.woff2',
+  '/glow.js',
+  '/fonts/instrument-sans-latin-wght-normal.woff2',
+  '/fonts/bricolage-grotesque-latin-opsz-normal.woff2',
+  '/fonts/jetbrains-mono-latin-wght-normal.woff2',
   '/manifest.webmanifest',
   '/icons/icon.svg',
   '/icons/icon-192.png',

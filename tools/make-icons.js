@@ -4,17 +4,15 @@ import { fileURLToPath } from 'node:url';
 import { crc32, deflateSync } from 'node:zlib';
 
 const outDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public/icons');
-const BG = [21, 23, 24];
-const BAR = [241, 242, 240];
-const CHEVRON = [91, 203, 134];
+const BG = [10, 13, 18];
 const SAMPLES = 4;
-
-function segmentDistance(x, y, ax, ay, bx, by) {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
-  return Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
-}
+// Four falling bars, matching public/icons/icon.svg (coordinates out of 512).
+const BARS = [
+  { x: 120, y: 128, color: [255, 93, 82] },
+  { x: 200, y: 200, color: [242, 180, 65] },
+  { x: 280, y: 270, color: [67, 209, 177] },
+  { x: 360, y: 314, color: [67, 209, 177] },
+].map((bar) => ({ left: bar.x / 512, right: (bar.x + 48) / 512, top: bar.y / 512, bottom: 384 / 512, color: bar.color }));
 
 function insideRounded(x, y, radius) {
   const qx = Math.abs(x - 0.5) - (0.5 - radius);
@@ -27,10 +25,8 @@ function sample(u, v, maskable) {
   const scale = maskable ? 0.72 : 1;
   const x = 0.5 + (u - 0.5) / scale;
   const y = 0.5 + (v - 0.5) / scale;
-  if (segmentDistance(x, y, 0.26, 0.32, 0.74, 0.32) <= 0.045) return BAR;
-  if (segmentDistance(x, y, 0.28, 0.47, 0.5, 0.69) <= 0.065
-    || segmentDistance(x, y, 0.5, 0.69, 0.72, 0.47) <= 0.065) return CHEVRON;
-  return BG;
+  const bar = BARS.find((b) => x >= b.left && x <= b.right && y >= b.top && y <= b.bottom);
+  return bar ? bar.color : BG;
 }
 
 function chunk(type, data) {
