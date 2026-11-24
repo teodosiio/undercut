@@ -32,10 +32,18 @@ Vercel functions have no lasting disk or always-on process, so the deployed app 
 - **Pages:** files in `public/` are served by Vercel.
 - **API:** every `/api/*` request goes to one function, `api/index.js`, which runs the same app as the local server.
 - **Database:** a Neon Postgres database, added from Vercel's Marketplace, which sets `DATABASE_URL`.
-- **Price checks:** the GitHub Actions workflow in `.github/workflows/check-prices.yml` calls `/api/cron` every 15 minutes, because Vercel's free plan allows cron jobs only once a day. `vercel.json` keeps one daily Vercel run as a backup. GitHub can start scheduled runs late or skip them under load, and pauses them in public repositories after 60 days without commits.
+- **Price checks:** an Upstash QStash schedule (added from Vercel's Marketplace, free up to 1,000 messages a day) calls `/api/cron` at minutes 7, 22, 37 and 52 of every hour, because Vercel's free plan allows cron jobs only once a day. Create or update it with `npm run schedule` (see below). Two backups stay in place: one daily Vercel run in `vercel.json`, and the GitHub Actions workflow in `.github/workflows/check-prices.yml`, which also lets you run a check by hand. GitHub's scheduler proved unreliable here and may not start on its own.
 - **Database time:** Neon's free plan has 100 compute-hours a month and sleeps after 5 idle minutes. Checks every 15 minutes and a page refresh every 6 minutes let it sleep. Checking every 5 minutes would keep it awake and use up the allowance mid-month.
 
 Set these on Vercel: `PRICE_PROVIDER=futgenie`, `MAX_ACCOUNTS=1` (so only your watchlist can exist), and a random `CRON_SECRET`. Set these as GitHub repository secrets: `UNDERCUT_URL` (the site address) and `UNDERCUT_CRON_SECRET` (the same value as `CRON_SECRET`).
+
+To create or update the QStash schedule after adding the integration, pull the QStash token with `vercel env pull`, then run this with `UNDERCUT_URL` and `CRON_SECRET` set in your shell. `--test` also sends one check right away:
+
+```powershell
+npm run schedule -- --test
+```
+
+If you change `CRON_SECRET`, update it on Vercel, in GitHub and in the schedule, then redeploy.
 
 With `MAX_ACCOUNTS=1`, the first person to press **Start my watchlist** owns the site's watchlist. A click is required, so link previews and Vercel's deployment screenshots cannot claim it. Use **Copy private link** to add your other devices.
 

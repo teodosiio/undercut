@@ -12,7 +12,8 @@
     "dev": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env --watch server/index.js",
     "test": "node --disable-warning=ExperimentalWarning --test test/app.test.js",
     "icons": "node tools/make-icons.js",
-    "fonts": "node tools/copy-fonts.js"
+    "fonts": "node tools/copy-fonts.js",
+    "schedule": "node --env-file-if-exists=.env.local tools/setup-schedule.js"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.6.0",
