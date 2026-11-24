@@ -1,0 +1,28 @@
+# Runs Undercut's price check every 15 minutes, because Vercel's free plan only allows daily cron jobs.
+# Needs two repository secrets: UNDERCUT_URL (the site address) and UNDERCUT_CRON_SECRET.
+name: Check prices
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: check-prices
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Trigger the price check
+        env:
+          UNDERCUT_URL: ${{ secrets.UNDERCUT_URL }}
+          UNDERCUT_CRON_SECRET: ${{ secrets.UNDERCUT_CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 320 \
+            -X POST -H "Authorization: Bearer ${UNDERCUT_CRON_SECRET}" \
+            "${UNDERCUT_URL%/}/api/cron"

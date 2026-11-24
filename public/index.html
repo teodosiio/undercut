@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Undercut</title>
+  <meta name="description" content="Get a notification when a watched Ultimate Team player drops under your price.">
+  <meta name="theme-color" content="#f1f2f0" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#101112" media="(prefers-color-scheme: dark)">
+  <link rel="preload" href="/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Undercut">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body data-view="watchlist">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="Undercut home">
+        <img src="/icons/icon.svg" alt="" width="30" height="30">
+        <span>Undercut</span>
+      </a>
+      <div class="topbar-meta">
+        <span class="source" id="sourcePill"><span id="sourceLabel">Connecting</span></span>
+        <span class="checked" id="lastChecked"></span>
+      </div>
+      <button class="btn btn-primary" id="addButton" type="button">
+        <span aria-hidden="true">+</span> Add player
+      </button>
+    </div>
+  </header>
+
+  <div class="demo-banner" id="demoBanner" hidden>
+    <strong id="demoTitle"></strong> <span id="demoText"></span>
+  </div>
+
+  <main class="layout">
+    <section class="panel-watchlist" data-panel="watchlist" aria-labelledby="watchHeading">
+      <div class="section-head">
+        <h1 id="watchHeading">Watchlist</h1>
+        <span class="slots" id="slots" aria-live="polite"></span>
+      </div>
+      <div class="slot-meter" aria-hidden="true"><span id="slotFill"></span></div>
+      <p class="credit" id="credit" hidden><a id="creditLink" href="/" target="_blank" rel="noopener noreferrer"></a></p>
+      <div class="list-head" id="listHead" aria-hidden="true" hidden>
+        <span>Card</span>
+        <span class="trend">Trend</span>
+        <span class="num">Price</span>
+        <span>Gap</span>
+        <span></span>
+      </div>
+      <ul class="watch-list" id="watchList"></ul>
+      <div class="empty" id="watchEmpty" hidden>
+        <h2>Pick your first player</h2>
+        <p>Set the price you want to pay. Undercut alerts you when the card drops under it.</p>
+        <button class="btn btn-primary" id="emptyAdd" type="button">Add player</button>
+      </div>
+    </section>
+
+    <div class="rail">
+      <section class="card" data-panel="alerts" aria-labelledby="alertsHeading">
+        <div class="section-head">
+          <h2 id="alertsHeading">Alerts</h2>
+          <button class="btn btn-quiet" id="markRead" type="button" hidden>Mark read</button>
+        </div>
+        <ul class="alert-list" id="alertList"></ul>
+        <p class="muted" id="alertsEmpty">No alerts yet. Price drops will show up here.</p>
+      </section>
+
+      <section class="card" data-panel="settings" aria-labelledby="notifyHeading">
+        <h2 id="notifyHeading">Notifications</h2>
+        <p class="muted" id="pushText">Checking this device.</p>
+        <div class="button-row">
+          <button class="btn btn-primary" id="pushEnable" type="button" hidden>Turn on</button>
+          <button class="btn" id="pushTest" type="button" hidden>Send test</button>
+          <button class="btn btn-quiet" id="pushDisable" type="button" hidden>Turn off</button>
+        </div>
+      </section>
+
+      <section class="card" data-panel="settings" aria-labelledby="devicesHeading">
+        <h2 id="devicesHeading">Your devices</h2>
+        <p class="muted">Open your private link on your phone or computer to share this watchlist. Anyone with the link can edit it.</p>
+        <div class="button-row">
+          <button class="btn" id="copyLink" type="button">Copy private link</button>
+          <button class="btn" id="installApp" type="button" hidden>Install app</button>
+        </div>
+        <input class="link-output" id="linkOutput" type="text" readonly aria-label="Private device link" hidden>
+        <p class="muted small" id="installHint" hidden></p>
+      </section>
+    </div>
+  </main>
+
+  <nav class="tabs" aria-label="Sections">
+    <button type="button" data-tab="watchlist" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      Watchlist
+    </button>
+    <button type="button" data-tab="alerts">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9M10 20a2.2 2.2 0 0 0 4 0"/></svg>
+      Alerts
+      <span class="badge" id="tabBadge" hidden></span>
+    </button>
+    <button type="button" data-tab="settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      Settings
+    </button>
+  </nav>
+
+  <dialog class="sheet" id="watchDialog" aria-labelledby="dialogTitle">
+    <form id="watchForm" novalidate>
+      <div class="sheet-head">
+        <h2 id="dialogTitle">Add player</h2>
+        <button class="icon-btn" id="dialogClose" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <div class="field">
+        <label class="field">
+          <span id="nameLabel">Player name</span>
+          <input id="fieldName" name="playerName" maxlength="200" autocomplete="off" required placeholder="Player name">
+        </label>
+        <small id="searchHint" aria-live="polite" hidden></small>
+        <ul class="card-results" id="cardResults" hidden></ul>
+      </div>
+
+      <label class="field" id="versionField">
+        <span>Card version</span>
+        <input id="fieldVersion" name="cardVersion" maxlength="40" autocomplete="off" list="versions" placeholder="Gold Rare">
+        <datalist id="versions">
+          <option value="Gold Rare"></option>
+          <option value="Gold Common"></option>
+          <option value="Team of the Week"></option>
+          <option value="Icon"></option>
+          <option value="Hero"></option>
+          <option value="Special"></option>
+        </datalist>
+      </label>
+
+      <label class="field" id="refField" hidden>
+        <span>Source ID</span>
+        <input id="fieldRef" name="sourceRef" maxlength="120" autocomplete="off" placeholder="Card ID in your price feed">
+      </label>
+
+      <fieldset class="field segmented" id="platformField">
+        <legend>Platform</legend>
+        <label><input type="radio" name="platform" value="console" checked><span>Console</span></label>
+        <label><input type="radio" name="platform" value="pc"><span>PC</span></label>
+        <small class="platform-hint" id="platformHint" hidden>PC prices aren't available from this price source.</small>
+      </fieldset>
+
+      <label class="field">
+        <span>Alert me under</span>
+        <div class="coin-input">
+          <input id="fieldTarget" name="targetPrice" inputmode="decimal" autocomplete="off" required placeholder="125k">
+          <span>coins</span>
+        </div>
+        <small id="targetHint">Try 125k, 1.2m or 45,000.</small>
+      </label>
+
+      <p class="form-error" id="formError" role="alert" hidden></p>
+      <button class="btn btn-primary btn-wide" id="formSubmit" type="submit">Start watching</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

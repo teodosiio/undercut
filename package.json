@@ -1,0 +1,25 @@
+{
+  "name": "undercut",
+  "version": "0.1.0",
+  "description": "Price-drop alerts for an Ultimate Team watchlist, as a web app and installable mobile app.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env server/index.js",
+    "dev": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env --watch server/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/app.test.js",
+    "icons": "node tools/make-icons.js",
+    "fonts": "node tools/copy-fonts.js"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.6.0",
+    "@neondatabase/serverless": "^1.2.1",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@fontsource-variable/archivo": "^5.3.0"
+  }
+}
