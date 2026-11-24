@@ -668,13 +668,46 @@ function bindEvents() {
   });
 }
 
+// A watchlist is created only after a click, so link previews and screenshot bots that run the page
+// cannot claim one on a site limited to a single watchlist.
+function waitForStart() {
+  const title = $('#emptyTitle');
+  const text = $('#emptyText');
+  const button = $('#startButton');
+  const original = [title.textContent, text.textContent];
+  title.textContent = 'Start your watchlist';
+  text.textContent = 'This creates a private watchlist for this browser. If you already have one, open its private link instead.';
+  $('#emptyAdd').hidden = true;
+  button.hidden = false;
+  $('#watchEmpty').hidden = false;
+  $('#addButton').disabled = true;
+
+  return new Promise((resolve) => {
+    button.addEventListener('click', async function onStart() {
+      button.disabled = true;
+      try {
+        await createAccount();
+      } catch (error) {
+        toast(error.message);
+        button.disabled = false;
+        return;
+      }
+      button.removeEventListener('click', onStart);
+      button.hidden = true;
+      $('#emptyAdd').hidden = false;
+      [title.textContent, text.textContent] = original;
+      $('#addButton').disabled = false;
+      resolve();
+    });
+  });
+}
+
 async function start() {
   bindEvents();
   consumeSyncLink();
 
   try {
     cfg = await api('/api/config');
-    if (!token) await createAccount();
   } catch (error) {
     $('#sourceLabel').textContent = 'Offline';
     toast(error.message);
@@ -693,6 +726,7 @@ async function start() {
   }
 
   const requestedView = new URLSearchParams(location.search).get('view');
+  if (!token) await waitForStart();
   await refresh();
   if (['alerts', 'settings'].includes(requestedView)) setView(requestedView);
 

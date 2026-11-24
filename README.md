@@ -36,7 +36,7 @@ Vercel functions have no lasting disk or always-on process, so the deployed app 
 
 Set these on Vercel: `PRICE_PROVIDER=futgenie`, `MAX_ACCOUNTS=1` (so only your watchlist can exist), and a random `CRON_SECRET`. Set these as GitHub repository secrets: `UNDERCUT_URL` (the site address) and `UNDERCUT_CRON_SECRET` (the same value as `CRON_SECRET`).
 
-With `MAX_ACCOUNTS=1`, the first browser to open the site owns the watchlist. Use **Copy private link** to add your other devices.
+With `MAX_ACCOUNTS=1`, the first person to press **Start my watchlist** owns the site's watchlist. A click is required, so link previews and Vercel's deployment screenshots cannot claim it. Use **Copy private link** to add your other devices.
 
 ## Install on a phone
 
