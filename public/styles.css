@@ -73,6 +73,8 @@
   --danger: #ff5fa2;
   --danger-wash: rgb(255 95 162 / 0.13);
   --neutral-wash: rgb(165 159 181 / 0.13);
+  --rise: #b99cff;
+  --rise-wash: rgb(185 156 255 / 0.14);
   --font-sans: "Instrument Sans", system-ui, sans-serif;
   --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -281,6 +283,7 @@ a { color: inherit; text-underline-offset: 4px; }
   letter-spacing: -0.035em;
 }
 .accent { font-family: var(--font-mono); font-weight: 500; letter-spacing: -0.04em; color: var(--good); }
+.accent-over { color: var(--rise); }
 
 .hero-stats {
   display: flex;
@@ -383,13 +386,20 @@ a { color: inherit; text-underline-offset: 4px; }
 
 .spark { display: block; width: 100px; height: 32px; overflow: visible; }
 .spark .zone { fill: var(--good-wash); }
+.spark .zone-above { fill: var(--rise-wash); }
+.spark .target-above { stroke: var(--rise); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: 0.8; }
+.is-over .spark .line { stroke: var(--rise); }
+.is-over .prices b { color: var(--rise); }
+.gap.over { background: var(--rise-wash); color: var(--rise); }
+.alert.is-above b { color: var(--rise); }
+.alert.is-above.is-unread strong::before { background: var(--rise); box-shadow: 0 0 8px color-mix(in srgb, var(--rise) 70%, transparent); }
 .spark .target { stroke: var(--good); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: 0.8; }
 .spark .line { fill: none; stroke: var(--faint); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .is-under .spark .line { stroke: var(--good); }
 
 .prices { text-align: right; }
 .prices b { display: block; font-family: var(--font-mono); font-size: 19px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.25; }
-.prices span { color: var(--faint); font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+.prices span { display: block; color: var(--faint); font-family: var(--font-mono); font-size: 12px; line-height: 1.5; white-space: nowrap; }
 .is-under .prices b { color: var(--good); }
 
 .gap {
@@ -515,7 +525,7 @@ a { color: inherit; text-underline-offset: 4px; }
 .sheet-head h2 { font-size: 24px; letter-spacing: -0.03em; }
 
 .field { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
-.field > span, .field legend { padding: 0; color: var(--muted); font-size: 13px; font-weight: 600; }
+.field > span:not(.coin-input), .field legend { padding: 0; color: var(--muted); font-size: 13px; font-weight: 600; }
 .field legend { margin-bottom: 6px; }
 .field small { color: var(--faint); font-size: 12.5px; }
 .field input:not([type="radio"]) {
@@ -533,7 +543,11 @@ a { color: inherit; text-underline-offset: 4px; }
 .field input:not([type="radio"]):focus { border-color: var(--ink); outline: none; }
 .field input:disabled { opacity: 0.6; }
 
-.coin-input { position: relative; }
+.coin-input { position: relative; display: block; }
+
+.price-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.price-pair .pair-hint { grid-column: 1 / -1; color: var(--faint); font-size: 12.5px; }
+.price-pair .field:last-of-type input:focus { border-color: var(--rise); }
 .coin-input input { padding-right: 62px !important; font-family: var(--font-mono); }
 .coin-input span { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); color: var(--faint); font-size: 13px; pointer-events: none; }
 
@@ -723,6 +737,7 @@ a { color: inherit; text-underline-offset: 4px; }
 }
 
 @media (max-width: 430px) {
+  .price-pair { grid-template-columns: 1fr; }
   .topbar-inner { gap: 10px; }
   #addButton { padding: 0 12px; }
   .source { padding: 6px 4px; font-size: 13px; }

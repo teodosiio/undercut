@@ -1,6 +1,6 @@
 # Undercut
 
-Undercut watches up to 20 Ultimate Team cards per account and sends a push notification when a card goes under the price you set. The same app runs in a desktop browser and installs on Android or iPhone as a PWA.
+Undercut watches up to 20 Ultimate Team cards per account and sends a push notification when a card drops under or rises over the prices you set. The same app runs in a desktop browser and installs on Android or iPhone as a PWA.
 
 **Prices are simulated by default.** Set `PRICE_PROVIDER=futgenie` in `.env` for free real console and PC prices. See [Connect live prices](#connect-live-prices).
 

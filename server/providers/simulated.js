@@ -1,4 +1,4 @@
-import { priceBelow, snap } from '../ladder.js';
+import { priceAbove, priceBelow, snap } from '../ladder.js';
 
 // Demo data only. These prices are generated locally and are not market prices.
 export function createSimulatedProvider({ random = Math.random } = {}) {
@@ -32,6 +32,10 @@ export function createSimulatedProvider({ random = Math.random } = {}) {
 
     forceDrop(key, targetPrice) {
       forced.set(key, priceBelow(targetPrice));
+    },
+
+    forceRise(key, abovePrice) {
+      forced.set(key, priceAbove(abovePrice));
     },
   };
 }

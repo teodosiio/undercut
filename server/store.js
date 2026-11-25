@@ -56,6 +56,12 @@ const SCHEMA = [
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   )`,
+  // Above alerts: a watch has an under price (target_price), an above price, or both.
+  // These upgrade databases created before above alerts existed, and are no-ops afterwards.
+  'ALTER TABLE watches ALTER COLUMN target_price DROP NOT NULL',
+  'ALTER TABLE watches ADD COLUMN IF NOT EXISTS above_price INTEGER',
+  'ALTER TABLE watches ADD COLUMN IF NOT EXISTS armed_above BOOLEAN NOT NULL DEFAULT TRUE',
+  "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS direction TEXT NOT NULL DEFAULT 'under'",
 ];
 
 const HISTORY_KEPT = 120;
@@ -76,6 +82,7 @@ function watchRow(row) {
     id: int(row.id),
     account_id: int(row.account_id),
     target_price: int(row.target_price),
+    above_price: int(row.above_price),
     current_price: int(row.current_price),
     last_checked: int(row.last_checked),
     created_at: int(row.created_at),
@@ -90,6 +97,7 @@ function publicWatch(row, history = []) {
     platform: row.platform,
     sourceRef: row.source_ref,
     targetPrice: row.target_price,
+    abovePrice: row.above_price,
     currentPrice: row.current_price,
     paused: row.paused,
     lastChecked: row.last_checked,
@@ -108,6 +116,7 @@ function alertFromRow(row) {
     platform: row.platform,
     price: int(row.price),
     targetPrice: int(row.target_price),
+    direction: row.direction ?? 'under',
     createdAt: int(row.created_at),
     read: row.read_at !== null && row.read_at !== undefined,
   };
@@ -167,13 +176,14 @@ export async function createStore({ db, maxWatches, maxAccounts, now = Date.now 
 
     async addWatch(accountId, input) {
       const row = await one(
-        `INSERT INTO watches (account_id, player_name, card_version, platform, source_ref, identity, target_price, created_at)
-         SELECT $1::int, $2::text, $3::text, $4::text, $5::text, $6::text, $7::int, $8::bigint
+        `INSERT INTO watches
+           (account_id, player_name, card_version, platform, source_ref, identity, target_price, above_price, created_at)
+         SELECT $1::int, $2::text, $3::text, $4::text, $5::text, $6::text, $7::int, $10::int, $8::bigint
          WHERE (SELECT count(*) FROM watches WHERE account_id = $1::int) < $9::int
          ON CONFLICT (account_id, identity, platform) DO NOTHING
          RETURNING *`,
         [accountId, input.playerName, input.cardVersion, input.platform, input.sourceRef,
-          identityOf(input), input.targetPrice, now(), maxWatches],
+          identityOf(input), input.targetPrice ?? null, now(), maxWatches, input.abovePrice ?? null],
       );
       if (row) return publicWatch(watchRow(row));
       if (await countWatches(accountId) >= maxWatches) {
@@ -182,15 +192,21 @@ export async function createStore({ db, maxWatches, maxAccounts, now = Date.now 
       throw new ApiError(409, 'You are already watching this card on that platform.');
     },
 
+    // In `patch`, an undefined price is left alone and null clears it. Changing a price, or resuming,
+    // re-arms that alert so it can fire again.
     async updateWatch(accountId, id, patch) {
+      const setUnder = patch.targetPrice !== undefined;
+      const setAbove = patch.abovePrice !== undefined;
       const row = await one(
         `UPDATE watches SET
-           target_price = COALESCE($3::int, target_price),
-           paused = COALESCE($4::boolean, paused),
-           armed = CASE WHEN $3::int IS NOT NULL OR $4::boolean = FALSE THEN TRUE ELSE armed END
+           target_price = CASE WHEN $3::boolean THEN $4::int ELSE target_price END,
+           above_price = CASE WHEN $5::boolean THEN $6::int ELSE above_price END,
+           paused = COALESCE($7::boolean, paused),
+           armed = CASE WHEN $3::boolean OR $7::boolean = FALSE THEN TRUE ELSE armed END,
+           armed_above = CASE WHEN $5::boolean OR $7::boolean = FALSE THEN TRUE ELSE armed_above END
          WHERE id = $1 AND account_id = $2
          RETURNING id`,
-        [id, accountId, patch.targetPrice ?? null, patch.paused ?? null],
+        [id, accountId, setUnder, patch.targetPrice ?? null, setAbove, patch.abovePrice ?? null, patch.paused ?? null],
       );
       if (!row) throw new ApiError(404, 'Player not found.');
     },
@@ -212,28 +228,37 @@ export async function createStore({ db, maxWatches, maxAccounts, now = Date.now 
       return rows.map(watchRow);
     },
 
-    // Records a price and, if it crossed under the target while armed, the alert. Returns the alert or null.
-    // The checks run inside the statements, so a target edited mid-check is respected.
+    // Records a price and returns the alerts it fired: one when it goes strictly under the under price,
+    // one when it goes strictly over the above price, each only while that alert is armed. An alert
+    // re-arms once the price is back on the other side of its line. The checks run inside the
+    // statements, so prices edited mid-check are respected and two checks cannot both fire.
     async recordPrice(row, price, at) {
-      const alert = await one(
+      const fire = (direction) => one(
         `WITH fired AS (
-           UPDATE watches SET current_price = $2::int, armed = FALSE, last_checked = $3::bigint, last_error = NULL
-           WHERE id = $1 AND paused = FALSE AND armed = TRUE AND $2::int < target_price
-           RETURNING id, account_id, player_name, card_version, platform, target_price
+           UPDATE watches SET ${direction === 'under' ? 'armed' : 'armed_above'} = FALSE
+           WHERE id = $1 AND paused = FALSE AND ${direction === 'under'
+    ? 'armed = TRUE AND target_price IS NOT NULL AND $2::int < target_price'
+    : 'armed_above = TRUE AND above_price IS NOT NULL AND $2::int > above_price'}
+           RETURNING id, account_id, player_name, card_version, platform,
+             ${direction === 'under' ? 'target_price' : 'above_price'} AS line
          )
-         INSERT INTO alerts (account_id, watch_id, player_name, card_version, platform, price, target_price, created_at)
-         SELECT account_id, id, player_name, card_version, platform, $2::int, target_price, $3::bigint FROM fired
+         INSERT INTO alerts
+           (account_id, watch_id, player_name, card_version, platform, price, target_price, created_at, direction)
+         SELECT account_id, id, player_name, card_version, platform, $2::int, line, $3::bigint, '${direction}'
+         FROM fired
          RETURNING *`,
         [row.id, price, at],
       );
-      if (!alert) {
-        await db.query(
-          `UPDATE watches SET current_price = $2::int, armed = ($2::int >= target_price),
-             last_checked = $3::bigint, last_error = NULL
-           WHERE id = $1 AND paused = FALSE`,
-          [row.id, price, at],
-        );
-      }
+      const alerts = [await fire('under'), await fire('above')].filter(Boolean).map(alertFromRow);
+
+      await db.query(
+        `UPDATE watches SET current_price = $2::int,
+           armed = (target_price IS NULL OR $2::int >= target_price),
+           armed_above = (above_price IS NULL OR $2::int <= above_price),
+           last_checked = $3::bigint, last_error = NULL
+         WHERE id = $1 AND paused = FALSE`,
+        [row.id, price, at],
+      );
       if (row.current_price !== price) {
         await db.query(
           `INSERT INTO price_points (watch_id, at, price)
@@ -247,7 +272,7 @@ export async function createStore({ db, maxWatches, maxAccounts, now = Date.now 
           [row.id, HISTORY_KEPT - 1],
         );
       }
-      return alert ? alertFromRow(alert) : null;
+      return alerts;
     },
 
     async recordError(id, message, at) {

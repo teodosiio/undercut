@@ -3,8 +3,8 @@ const isValidPrice = (price) => Number.isSafeInteger(price) && price > 0;
 export const priceKey = (row) =>
   `${row.platform}:${row.source_ref || `${row.player_name}|${row.card_version}`.toLocaleLowerCase()}`;
 
-// Alerts fire once when a price goes strictly under target, then re-arm when it recovers.
-// That rule lives in store.recordPrice so it is applied atomically in the database.
+// Alerts fire once when a price goes strictly under the under price or over the above price,
+// then re-arm when it comes back. That rule lives in store.recordPrice so it is atomic.
 export function createMonitor({ store, provider, push, log = console, now = Date.now }) {
   let tail = Promise.resolve();
 
@@ -26,7 +26,8 @@ export function createMonitor({ store, provider, push, log = console, now = Date
             platform: row.platform,
             playerName: row.player_name,
             cardVersion: row.card_version,
-            targetPrice: row.target_price,
+            // A price hint for demo data: the under price, or a little below an above-only price.
+            targetPrice: row.target_price ?? Math.round(row.above_price * 0.88),
           });
         }
       }
@@ -53,8 +54,7 @@ export function createMonitor({ store, provider, push, log = console, now = Date
             failed += 1;
             continue;
           }
-          const alert = await store.recordPrice(row, price, at);
-          if (alert) fired.push(alert);
+          fired.push(...await store.recordPrice(row, price, at));
           checked += 1;
         }
         await Promise.allSettled(fired.map((alert) => push.sendAlert(alert)));

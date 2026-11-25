@@ -19,6 +19,15 @@ export function snap(price) {
   return clamp(Math.round(bounded / step) * step);
 }
 
+// A valid ladder price roughly 3% over the line, always strictly above it.
+export function priceAbove(line) {
+  const raw = clamp(Math.ceil(line * 1.03));
+  const step = stepFor(raw);
+  let value = Math.ceil(raw / step) * step;
+  if (value <= line) value += step;
+  return clamp(value);
+}
+
 // A valid ladder price roughly 3% under the target, always strictly below it.
 export function priceBelow(target) {
   const raw = clamp(Math.floor(target * 0.97));

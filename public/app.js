@@ -150,31 +150,57 @@ function timeAgo(timestamp) {
 
 const platformLabel = (platform) => (platform === 'pc' ? 'PC' : 'Console');
 
+const percent = (part, whole) => `${((part / whole) * 100).toFixed(1)}%`;
+
+// Status keys: under / over (an alert line is crossed), watching, paused, error, pending.
 function statusOf(watch) {
   if (watch.paused) return { key: 'paused', label: 'Paused' };
   if (watch.currentPrice === null) {
     return watch.lastError ? { key: 'error', label: 'No price' } : { key: 'pending', label: 'Checking' };
   }
   if (watch.lastError) return { key: 'error', label: 'Price stale' };
-  const gap = ((watch.currentPrice - watch.targetPrice) / watch.targetPrice) * 100;
-  if (gap < 0) return { key: 'under', label: `${Math.abs(gap).toFixed(1)}% under` };
-  if (gap === 0) return { key: 'above', label: 'At target' };
-  return { key: 'above', label: `${gap.toFixed(1)}% above` };
+  const price = watch.currentPrice;
+  const under = watch.targetPrice;
+  const above = watch.abovePrice;
+  if (under !== null && price < under) return { key: 'under', label: `Under by ${percent(under - price, under)}` };
+  if (above !== null && price > above) return { key: 'over', label: `Over by ${percent(price - above, above)}` };
+  // Neither crossed: show the distance to whichever line is closer.
+  const toDrop = under !== null ? (price - under) / under : Infinity;
+  const toRise = above !== null ? (above - price) / above : Infinity;
+  if (toDrop <= toRise) {
+    return { key: 'watching', label: price === under ? 'At under price' : `${percent(price - under, under)} to drop` };
+  }
+  return { key: 'watching', label: price === above ? 'At above price' : `${percent(above - price, above)} to rise` };
 }
 
-// Price history drawn against the target line, with the zone under the target shaded.
+// Price history drawn against the alert lines: the zone under the under price and the zone over
+// the above price are shaded.
 function sparkline(watch) {
   const root = svg('svg', { class: 'spark', viewBox: '0 0 100 32', preserveAspectRatio: 'none', 'aria-hidden': 'true' });
   const values = watch.history.length >= 2 ? watch.history : [];
-  const min = Math.min(...values, watch.targetPrice * 0.97);
-  const max = Math.max(...values, watch.targetPrice * 1.03);
+  const under = watch.targetPrice;
+  const above = watch.abovePrice;
+  const bounds = [...values];
+  if (under !== null) bounds.push(under * 0.97, under * 1.03);
+  if (above !== null) bounds.push(above * 0.97, above * 1.03);
+  const min = Math.min(...bounds);
+  const max = Math.max(...bounds);
   const range = max - min || 1;
   const y = (value) => 30 - ((value - min) / range) * 28;
-  const targetY = Number(y(watch.targetPrice).toFixed(2));
-  root.append(
-    svg('rect', { class: 'zone', x: 0, y: targetY, width: 100, height: Math.max(0, 32 - targetY) }),
-    svg('line', { class: 'target', x1: 0, x2: 100, y1: targetY, y2: targetY }),
-  );
+  if (under !== null) {
+    const underY = Number(y(under).toFixed(2));
+    root.append(
+      svg('rect', { class: 'zone', x: 0, y: underY, width: 100, height: Math.max(0, 32 - underY) }),
+      svg('line', { class: 'target', x1: 0, x2: 100, y1: underY, y2: underY }),
+    );
+  }
+  if (above !== null) {
+    const aboveY = Number(y(above).toFixed(2));
+    root.append(
+      svg('rect', { class: 'zone-above', x: 0, y: 0, width: 100, height: Math.max(0, aboveY) }),
+      svg('line', { class: 'target-above', x1: 0, x2: 100, y1: aboveY, y2: aboveY }),
+    );
+  }
   if (values.length) {
     const points = values.map((value, index) => `${(index / (values.length - 1)) * 100},${y(value).toFixed(2)}`);
     root.append(svg('polyline', { class: 'line', points: points.join(' ') }));
@@ -189,9 +215,9 @@ function watchRow(watch, signature) {
 
   const actions = el('div', { class: 'actions' },
     cfg.provider.canSimulateDrop && !watch.paused
-      ? el('button', { class: 'text-action', type: 'button', onclick: () => simulateDrop(watch.id) }, 'Test drop')
+      ? el('button', { class: 'text-action', type: 'button', onclick: () => simulateDrop(watch.id) }, 'Test alert')
       : null,
-    el('button', { class: 'icon-btn', type: 'button', 'aria-label': `Edit target for ${name}`, title: 'Edit target', onclick: () => openDialog(watch) }, icon('edit')),
+    el('button', { class: 'icon-btn', type: 'button', 'aria-label': `Edit alert prices for ${name}`, title: 'Edit prices', onclick: () => openDialog(watch) }, icon('edit')),
     el('button', {
       class: 'icon-btn',
       type: 'button',
@@ -211,7 +237,8 @@ function watchRow(watch, signature) {
     sparkline(watch),
     el('div', { class: 'prices' },
       el('b', {}, watch.currentPrice === null ? '–' : coins.format(watch.currentPrice)),
-      el('span', {}, `Target ${coins.format(watch.targetPrice)}`)),
+      watch.targetPrice !== null ? el('span', {}, `Under ${coins.format(watch.targetPrice)}`) : null,
+      watch.abovePrice !== null ? el('span', { class: 'above-line' }, `Above ${coins.format(watch.abovePrice)}`) : null),
     el('span', { class: `gap ${status.key}` }, status.label),
     actions,
   );
@@ -247,10 +274,10 @@ function renderWatches() {
   const used = state.watches.length;
   $('#watchEmpty').hidden = used > 0;
   $('#listHead').hidden = used === 0;
-  const under = state.watches.filter((watch) => statusOf(watch).key === 'under').length;
+  const crossed = state.watches.filter((watch) => ['under', 'over'].includes(statusOf(watch).key)).length;
   $('#statWatching').textContent = `${used} of ${state.limit}`;
-  $('#statUnder').textContent = String(under);
-  $('#statUnder').classList.toggle('is-good', under > 0);
+  $('#statUnder').textContent = String(crossed);
+  $('#statUnder').classList.toggle('is-good', crossed > 0);
   $('#slots').textContent = `${used} of ${state.limit} players`;
   $('#slotFill').style.width = `${(used / state.limit) * 100}%`;
   const full = used >= state.limit;
@@ -259,10 +286,10 @@ function renderWatches() {
 }
 
 function renderAlerts() {
-  const items = state.alerts.map((alert) => el('li', { class: `alert${alert.read ? '' : ' is-unread'}` },
+  const items = state.alerts.map((alert) => el('li', { class: `alert is-${alert.direction}${alert.read ? '' : ' is-unread'}` },
     el('strong', { title: alert.playerName }, alert.playerName),
     el('b', {}, coins.format(alert.price)),
-    el('span', {}, `${alert.cardVersion}, ${platformLabel(alert.platform)}. Target ${coins.format(alert.targetPrice)}`),
+    el('span', {}, `${alert.cardVersion}, ${platformLabel(alert.platform)}. ${alert.direction === 'above' ? 'Above' : 'Under'} ${coins.format(alert.targetPrice)}`),
     el('time', { datetime: new Date(alert.createdAt).toISOString() }, timeAgo(alert.createdAt)),
   ));
   $('#alertList').replaceChildren(...items);
@@ -283,7 +310,7 @@ function applyState(next) {
   const newest = next.alerts[0]?.id ?? 0;
   if (lastAlertId !== null && newest > lastAlertId) {
     const alert = next.alerts[0];
-    toast(`${alert.playerName} dropped to ${coins.format(alert.price)}`);
+    toast(`${alert.playerName} ${alert.direction === 'above' ? 'rose' : 'dropped'} to ${coins.format(alert.price)}`);
   }
   lastAlertId = newest;
   state = next;
@@ -356,12 +383,14 @@ async function removeWatch(id) {
   await act(async () => applyState((await api(`/api/watches/${id}`, { method: 'DELETE' })).state));
 }
 
-function updateTargetHint() {
-  const raw = $('#fieldTarget').value;
-  const value = parseCoins(raw);
-  $('#targetHint').textContent = !raw.trim()
-    ? 'Try 125k, 1.2m or 45,000.'
-    : value === null ? 'Enter a whole coin amount.' : `Alert when under ${coins.format(value)} coins.`;
+function updatePriceHints() {
+  const hint = (raw, empty, filled) => {
+    const value = parseCoins(raw);
+    if (!raw.trim()) return empty;
+    return value === null ? 'Enter a whole coin amount' : filled(coins.format(value));
+  };
+  $('#targetHint').textContent = hint($('#fieldTarget').value, 'When it drops below this', (v) => `Under ${v} coins`);
+  $('#aboveHint').textContent = hint($('#fieldAbove').value, 'When it rises past this', (v) => `Over ${v} coins`);
 }
 
 function setSearchHint(message) {
@@ -447,8 +476,8 @@ function openDialog(watch = null) {
   const copy = searchCopy();
   setSearchHint(searching ? copy.hint : '');
   $('#formError').hidden = true;
-  $('#dialogTitle').textContent = watch ? 'Edit target' : 'Add player';
-  $('#formSubmit').textContent = watch ? 'Save target' : 'Start watching';
+  $('#dialogTitle').textContent = watch ? 'Edit alert prices' : 'Add player';
+  $('#formSubmit').textContent = watch ? 'Save prices' : 'Start watching';
   $('#refField').hidden = !cfg.provider.requiresRef || cfg.provider.canSearch;
   $('#versionField').hidden = searching;
   $('#nameLabel').textContent = searching ? copy.label : 'Player name';
@@ -465,9 +494,10 @@ function openDialog(watch = null) {
     $('#fieldName').value = watch.playerName;
     $('#fieldVersion').value = watch.cardVersion;
     $('#fieldRef').value = watch.sourceRef;
-    $('#fieldTarget').value = String(watch.targetPrice);
+    $('#fieldTarget').value = watch.targetPrice === null ? '' : String(watch.targetPrice);
+    $('#fieldAbove').value = watch.abovePrice === null ? '' : String(watch.abovePrice);
   }
-  updateTargetHint();
+  updatePriceHints();
   $('#watchDialog').showModal();
   (watch ? $('#fieldTarget') : $('#fieldName')).focus();
 }
@@ -481,8 +511,22 @@ async function submitForm(event) {
     errorNode.hidden = false;
   };
 
-  const targetPrice = parseCoins($('#fieldTarget').value);
-  if (targetPrice === null) return showError('Enter a target price, like 125k.');
+  // An empty box turns that alert off; anything else must be a coin amount.
+  const read = (selector) => {
+    const raw = $(selector).value;
+    if (!raw.trim()) return { value: null, ok: true };
+    const value = parseCoins(raw);
+    return { value, ok: value !== null };
+  };
+  const under = read('#fieldTarget');
+  const above = read('#fieldAbove');
+  if (!under.ok || !above.ok) return showError('Enter prices as whole coin amounts, like 125k.');
+  if (under.value === null && above.value === null) return showError('Set an under price, an above price, or both.');
+  if (under.value !== null && above.value !== null && above.value <= under.value) {
+    return showError('The above price must be higher than the under price.');
+  }
+  const targetPrice = under.value;
+  const abovePrice = above.value;
   if (editingId === null && $('#fieldName').value.trim().length < 2) return showError('Enter a player name.');
   if (editingId === null && cfg.provider.canSearch && !$('#fieldRef').value) {
     return showError('Choose a card from the search results.');
@@ -500,9 +544,10 @@ async function submitForm(event) {
           sourceRef: $('#fieldRef').value,
           platform: form.elements.platform.value,
           targetPrice,
+          abovePrice,
         },
       })
-      : await api(`/api/watches/${editingId}`, { method: 'PATCH', body: { targetPrice } });
+      : await api(`/api/watches/${editingId}`, { method: 'PATCH', body: { targetPrice, abovePrice } });
     $('#watchDialog').close();
     applyState(result.state);
   } catch (error) {
@@ -649,7 +694,8 @@ function bindEvents() {
     if (event.target === event.currentTarget) event.currentTarget.close();
   });
   $('#watchForm').addEventListener('submit', submitForm);
-  $('#fieldTarget').addEventListener('input', updateTargetHint);
+  $('#fieldTarget').addEventListener('input', updatePriceHints);
+  $('#fieldAbove').addEventListener('input', updatePriceHints);
   $('#fieldName').addEventListener('input', onNameInput);
   $('#platformField').addEventListener('change', () => renderCardResults(searchResults));
   $('#markRead').addEventListener('click', markRead);

@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test';
 import webpush from 'web-push';
 import { createApp } from '../server/app.js';
 import { config } from '../server/config.js';
-import { priceBelow, snap } from '../server/ladder.js';
+import { priceAbove, priceBelow, snap } from '../server/ladder.js';
 import { openDatabase } from '../server/db.js';
 import { createMonitor } from '../server/monitor.js';
 import { createDataFluxorProvider } from '../server/providers/datafluxor.js';
@@ -122,6 +122,68 @@ test('paused players are not checked or alerted', async () => {
   assert.equal((await store.listWatches(id))[0].currentPrice, null);
 });
 
+test('an above price fires once when the price rises over it, then re-arms', async () => {
+  const { store, monitor, market, sent } = await harness();
+  const id = await account(store);
+  await store.saveSubscription(id, { endpoint: validSub.endpoint, ...validSub.keys });
+  await store.addWatch(id, { ...card('Riser'), targetPrice: null, abovePrice: 20_000 });
+
+  for (const [price, expected] of [[19_000, 0], [20_000, 0], [20_100, 1], [21_000, 1], [19_900, 1], [20_500, 2]]) {
+    market.set('Riser', price);
+    await monitor.run();
+    assert.equal(sent.length, expected, `after price ${price}`);
+  }
+  assert.match(sent[0].payload.title, /Riser is above your price/);
+  const alerts = await store.listAlerts(id);
+  assert.deepEqual(alerts.map((alert) => [alert.direction, alert.targetPrice]), [['above', 20_000], ['above', 20_000]]);
+});
+
+test('under and above prices on one player fire independently', async () => {
+  const { store, monitor, market, sent } = await harness();
+  const id = await account(store);
+  await store.saveSubscription(id, { endpoint: validSub.endpoint, ...validSub.keys });
+  const watch = await store.addWatch(id, { ...card('Swinger', 10_000), abovePrice: 15_000 });
+  assert.equal(watch.abovePrice, 15_000);
+
+  for (const price of [12_000, 9_000, 16_000, 9_500]) {
+    market.set('Swinger', price);
+    await monitor.run();
+  }
+  assert.deepEqual(sent.map((s) => s.payload.title), [
+    'Swinger is under your price',
+    'Swinger is above your price',
+    'Swinger is under your price',
+  ]);
+
+  // Clearing the under price leaves only the above alert.
+  await store.updateWatch(id, watch.id, { targetPrice: null });
+  market.set('Swinger', 5_000);
+  await monitor.run();
+  assert.equal(sent.length, 3);
+  const [saved] = await store.listWatches(id);
+  assert.equal(saved.targetPrice, null);
+  assert.equal(saved.abovePrice, 15_000);
+});
+
+test('databases from before above alerts are upgraded in place', async () => {
+  const db = await openDatabase();
+  const store = await createStore({ db, maxWatches: 20, maxAccounts: 5 });
+  const id = await account(store);
+  await store.addWatch(id, card('Old Card'));
+  // Recreate the old shape: no above columns, and an under price that is required.
+  await db.query('ALTER TABLE watches DROP COLUMN above_price');
+  await db.query('ALTER TABLE watches DROP COLUMN armed_above');
+  await db.query('ALTER TABLE alerts DROP COLUMN direction');
+  await db.query('ALTER TABLE watches ALTER COLUMN target_price SET NOT NULL');
+
+  const upgraded = await createStore({ db, maxWatches: 20, maxAccounts: 5 });
+  const [kept] = await upgraded.listWatches(id);
+  assert.equal(kept.targetPrice, 10_000);
+  assert.equal(kept.abovePrice, null);
+  await upgraded.addWatch(id, { ...card('Above Only'), targetPrice: null, abovePrice: 50_000 });
+  assert.equal((await upgraded.listWatches(id)).length, 2);
+});
+
 test('the account limit keeps a private deployment private', async () => {
   const store = await memoryStore({ maxAccounts: 1 });
   await store.createAccount();
@@ -169,7 +231,7 @@ test('alert push is a valid signed request that a device can decrypt', async () 
   assert.match(request.headers.Authorization, /^vapid t=.+, k=.+/);
   assert.equal(request.headers['Content-Encoding'], 'aes128gcm');
   assert.equal(request.headers.Urgency, 'high');
-  assert.equal(request.headers.Topic, 'watch-7');
+  assert.equal(request.headers.Topic, 'watch-7-under');
 
   // RFC 8291 decryption, as performed by the receiving browser.
   const body = request.body;
@@ -186,7 +248,7 @@ test('alert push is a valid signed request that a device can decrypt', async () 
   const plain = Buffer.concat([decipher.update(encrypted.subarray(0, -16)), decipher.final()]);
   const message = JSON.parse(plain.subarray(0, plain.lastIndexOf(2)).toString('utf8'));
   assert.equal(message.title, 'Test Player is under your price');
-  assert.match(message.body, /9,900 coins now, your target is 10,000/);
+  assert.match(message.body, /9,900 coins now, your under price is 10,000/);
   store.close();
 });
 
@@ -204,6 +266,7 @@ test('demo prices stay on the ladder and drops land under target', () => {
   assert.equal(snap(12_380), 12_500);
   for (const target of [200, 975, 1_000, 10_000, 50_000, 100_000, 15_000_000]) {
     assert.ok(priceBelow(target) < target, `target ${target}`);
+    if (target < 15_000_000) assert.ok(priceAbove(target) > target, `above ${target}`);
   }
 });
 
@@ -561,9 +624,27 @@ test('API validates input and rejects non-push endpoints', async () => {
     { playerName: 'Valid Name', platform: 'pc', targetPrice: 100 },
     { playerName: 'Valid Name', platform: 'pc', targetPrice: 12.5 },
     { playerName: 'Valid Name', platform: 'pc', targetPrice: 99_000_000 },
+    { playerName: 'Valid Name', platform: 'pc' },
+    { playerName: 'Valid Name', platform: 'pc', targetPrice: null, abovePrice: null },
+    { playerName: 'Valid Name', platform: 'pc', targetPrice: 20_000, abovePrice: 20_000 },
+    { playerName: 'Valid Name', platform: 'pc', targetPrice: 20_000, abovePrice: 150 },
   ]) {
-    assert.equal((await call('POST', '/api/watches', { token, body })).status, 400);
+    assert.equal((await call('POST', '/api/watches', { token, body })).status, 400, JSON.stringify(body));
   }
+
+  // Above only is allowed, and an edit cannot leave a player with no alert or crossed prices.
+  const aboveOnly = await call('POST', '/api/watches', {
+    token,
+    body: { playerName: 'Above Only', platform: 'pc', abovePrice: 30_000 },
+  });
+  assert.equal(aboveOnly.status, 201);
+  const url = `/api/watches/${aboveOnly.json.id}`;
+  assert.equal((await call('PATCH', url, { token, body: { abovePrice: null } })).status, 400);
+  assert.equal((await call('PATCH', url, { token, body: { targetPrice: 40_000 } })).status, 400);
+  const both = await call('PATCH', url, { token, body: { targetPrice: 25_000 } });
+  assert.equal(both.status, 200);
+  const saved = both.json.state.watches.find((watch) => watch.id === aboveOnly.json.id);
+  assert.deepEqual([saved.targetPrice, saved.abovePrice], [25_000, 30_000]);
   const bad = await call('POST', '/api/push/subscribe', {
     token,
     body: { ...validSub, endpoint: 'http://127.0.0.1:9000/steal' },

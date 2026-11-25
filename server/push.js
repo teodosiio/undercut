@@ -59,12 +59,14 @@ export function createPush({ store, vapid, subject, send = webpush.sendNotificat
 
   return {
     sendAlert(alert) {
+      const above = alert.direction === 'above';
+      const card = `${alert.cardVersion}, ${alert.platform === 'pc' ? 'PC' : 'Console'}`;
       return deliver(alert.accountId, {
-        title: `${alert.playerName} is under your price`,
-        body: `${coins(alert.price)} coins now, your target is ${coins(alert.targetPrice)} (${alert.cardVersion}, ${alert.platform === 'pc' ? 'PC' : 'Console'})`,
-        tag: `watch-${alert.watchId}`,
+        title: `${alert.playerName} is ${above ? 'above' : 'under'} your price`,
+        body: `${coins(alert.price)} coins now, your ${above ? 'above' : 'under'} price is ${coins(alert.targetPrice)} (${card})`,
+        tag: `watch-${alert.watchId}-${above ? 'above' : 'under'}`,
         url: '/?view=alerts',
-      }, `watch-${alert.watchId}`);
+      }, `watch-${alert.watchId}-${above ? 'above' : 'under'}`);
     },
     sendTest(accountId) {
       return deliver(accountId, {

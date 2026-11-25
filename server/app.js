@@ -60,11 +60,20 @@ function cleanText(value, label, { min, max }) {
   return text;
 }
 
-function parseTarget(value) {
+// An alert price, or null when that alert is off (missing, null or an empty string).
+function parsePrice(value, label) {
+  if (value === undefined || value === null || value === '') return null;
   if (!Number.isSafeInteger(value) || value < MIN_TARGET || value > MAX_PRICE) {
-    throw new ApiError(400, `Target price must be from ${MIN_TARGET} to ${MAX_PRICE.toLocaleString('en-US')} coins.`);
+    throw new ApiError(400, `${label} must be from ${MIN_TARGET} to ${MAX_PRICE.toLocaleString('en-US')} coins.`);
   }
   return value;
+}
+
+function checkPrices(under, above) {
+  if (under === null && above === null) throw new ApiError(400, 'Set an under price, an above price, or both.');
+  if (under !== null && above !== null && above <= under) {
+    throw new ApiError(400, 'The above price must be higher than the under price.');
+  }
 }
 
 function parseWatch(body, provider) {
@@ -77,12 +86,16 @@ function parseWatch(body, provider) {
   if (sourceRef && provider.isValidRef && !provider.isValidRef(sourceRef)) {
     throw new ApiError(400, 'Choose a card from the search results.');
   }
+  const targetPrice = parsePrice(body.targetPrice, 'Under price');
+  const abovePrice = parsePrice(body.abovePrice, 'Above price');
+  checkPrices(targetPrice, abovePrice);
   return {
     playerName: cleanText(body.playerName, 'Player name', { min: 2, max: 60 }),
     cardVersion: cleanText(body.cardVersion || 'Standard', 'Card version', { min: 1, max: 40 }),
     platform: body.platform,
     sourceRef,
-    targetPrice: parseTarget(body.targetPrice),
+    targetPrice,
+    abovePrice,
   };
 }
 
@@ -203,7 +216,9 @@ export function createApp({ store, monitor, push, provider, config, vapidPublicK
         const row = await store.getWatchFor(accountId, id);
         if (!row) throw new ApiError(404, 'Player not found.');
         if (row.paused) throw new ApiError(409, 'Resume this player first.');
-        provider.forceDrop(priceKey(row), row.target_price);
+        // Demo only: crosses the under price if there is one, otherwise the above price.
+        if (row.target_price !== null) provider.forceDrop(priceKey(row), row.target_price);
+        else provider.forceRise(priceKey(row), row.above_price);
         await monitor.run({ watchIds: [id] });
         return sendJson(res, 200, { state: await stateFor(accountId) });
       }
@@ -211,7 +226,16 @@ export function createApp({ store, monitor, push, provider, config, vapidPublicK
       if (method === 'PATCH') {
         const body = await readJson(req);
         const patch = {};
-        if (body.targetPrice !== undefined) patch.targetPrice = parseTarget(body.targetPrice);
+        if (body.targetPrice !== undefined) patch.targetPrice = parsePrice(body.targetPrice, 'Under price');
+        if (body.abovePrice !== undefined) patch.abovePrice = parsePrice(body.abovePrice, 'Above price');
+        if (patch.targetPrice !== undefined || patch.abovePrice !== undefined) {
+          const current = await store.getWatchFor(accountId, id);
+          if (!current) throw new ApiError(404, 'Player not found.');
+          checkPrices(
+            patch.targetPrice !== undefined ? patch.targetPrice : current.target_price,
+            patch.abovePrice !== undefined ? patch.abovePrice : current.above_price,
+          );
+        }
         if (body.paused !== undefined) {
           if (typeof body.paused !== 'boolean') throw new ApiError(400, 'Paused must be true or false.');
           patch.paused = body.paused;

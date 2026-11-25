@@ -47,10 +47,10 @@
     <canvas class="hero-glow" id="heroGlow" aria-hidden="true"></canvas>
     <div class="hero-inner">
       <p class="eyebrow">Price alerts for your FC 27 Ultimate Team watchlist</p>
-      <h1 id="heroTitle">Get pinged when a card drops <span class="accent">under</span> your price.</h1>
+      <h1 id="heroTitle">Get pinged when a card goes <span class="accent">under</span> or <span class="accent accent-over">over</span> your price.</h1>
       <dl class="hero-stats">
         <div><dt>Watching</dt><dd id="statWatching">–</dd></div>
-        <div><dt>Under target</dt><dd id="statUnder">–</dd></div>
+        <div><dt>Past a limit</dt><dd id="statUnder">–</dd></div>
         <div><dt>Last check</dt><dd id="statChecked">–</dd></div>
       </dl>
     </div>
@@ -133,7 +133,7 @@
   <footer class="site-footer">
     <div class="site-footer-inner">
       <span class="credit" id="credit" hidden><a id="creditLink" href="/" target="_blank" rel="noopener noreferrer"></a></span>
-      <span>Checks every 15 minutes · alerts once per drop</span>
+      <span>Checks every 15 minutes · one alert each time a price crosses your line</span>
     </div>
   </footer>
 
@@ -198,14 +198,25 @@
         <small class="platform-hint" id="platformHint" hidden>PC prices aren't available from this price source.</small>
       </fieldset>
 
-      <label class="field">
-        <span>Alert me under</span>
-        <div class="coin-input">
-          <input id="fieldTarget" name="targetPrice" inputmode="decimal" autocomplete="off" required placeholder="125k">
-          <span>coins</span>
-        </div>
-        <small id="targetHint">Try 125k, 1.2m or 45,000.</small>
-      </label>
+      <div class="price-pair">
+        <label class="field">
+          <span>Alert me under</span>
+          <span class="coin-input">
+            <input id="fieldTarget" name="targetPrice" inputmode="decimal" autocomplete="off" placeholder="125k">
+            <span>coins</span>
+          </span>
+          <small id="targetHint">When it drops below this</small>
+        </label>
+        <label class="field">
+          <span>Alert me above</span>
+          <span class="coin-input">
+            <input id="fieldAbove" name="abovePrice" inputmode="decimal" autocomplete="off" placeholder="150k">
+            <span>coins</span>
+          </span>
+          <small id="aboveHint">When it rises past this</small>
+        </label>
+        <small class="pair-hint">Fill in one or both. Try 125k, 1.2m or 45,000.</small>
+      </div>
 
       <p class="form-error" id="formError" role="alert" hidden></p>
       <button class="btn btn-primary btn-wide" id="formSubmit" type="submit">Start watching</button>
